@@ -3,6 +3,7 @@
 ![GitHub last commit](https://img.shields.io/github/last-commit/maxvdec/atlas-tracer)
 ![GitHub Issues or Pull Requests](https://img.shields.io/github/issues/maxvdec/atlas-tracer)
 ![GitHub Repo stars](https://img.shields.io/github/stars/maxvdec/atlas-tracer)
+![Build Status](https://github.com/maxvdec/atlas-tracer/actions/workflows/xcode.yml/badge.svg)
 
 Atlas Tracer is a macOS application that helps the user debug Atlas applications made with the engine.
 
