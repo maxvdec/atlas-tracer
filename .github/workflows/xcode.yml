@@ -2,9 +2,7 @@ name: Build Xcode Project
 
 on:
   push:
-    branches: [ main, develop ]
   pull_request:
-    branches: [ main, develop ]
 
 jobs:
   build:
@@ -31,7 +29,7 @@ jobs:
         swift --version
     
     - name: Cache build artifacts
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: |
           ~/Library/Caches/org.swift.swiftpm
@@ -91,7 +89,7 @@ jobs:
     
     - name: Upload build logs on failure
       if: failure()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: build-logs
         path: |
