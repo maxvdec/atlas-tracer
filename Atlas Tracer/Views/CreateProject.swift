@@ -92,14 +92,21 @@ struct SelectLogsAndExecutableView: View {
 
     @State private var debugName: String = ""
     @State private var executablePath: URL? = nil
-    @State private var recieveLogsFrom: [LogType] = []
-    @State private var customTypes: [Int] = []
+
+    @State private var customGraphics: Bool = false
+    @State private var customLogic: Bool = false
+    @State private var customResources: Bool = false
+    @State private var customObject: Bool = false
+    @State private var customTraces: Bool = false
+    @State private var customProfiling: Bool = false
+
+    @State private var warningsOn: Bool = false
+    @State private var errorsOn: Bool = false
+    @State private var logsOn: Bool = false
     var body: some View {
         VStack(alignment: .leading) {
             Text("Creating a \(getDebugTypeFromId(id: selected)) Project...")
                 .bold()
-            Divider()
-                .padding(.bottom)
 
             // Project Details Section
             TextField("Project Name", text: $debugName)
@@ -134,6 +141,76 @@ struct SelectLogsAndExecutableView: View {
             Text("Select which type of logs do you want to recieve from the application. These vary from exclusively errors to warning or general information ones.")
                 .font(.caption)
                 .foregroundStyle(Color.secondary)
+                .padding(.bottom, 5)
+
+            VStack(alignment: .leading) {
+                Toggle(isOn: $errorsOn) {
+                    Text("Errors")
+                        .bold()
+                }.toggleStyle(.checkbox)
+                Toggle(isOn: $warningsOn) {
+                    Text("Warnings")
+                        .bold()
+                }.toggleStyle(.checkbox)
+                Toggle(isOn: $logsOn) {
+                    Text("Logs")
+                        .bold()
+                }.toggleStyle(.checkbox)
+            }
+
+            if selected == 1 {
+                // Types of debugs
+                Divider()
+                    .padding(.vertical)
+
+                Text("Select capabilities of Custom Debug")
+                    .bold()
+
+                VStack(alignment: .leading) {
+                    Toggle(isOn: $customGraphics) {
+                        Text("Graphics")
+                            .bold()
+                    }.toggleStyle(.checkbox)
+                    Toggle(isOn: $customLogic) {
+                        Text("Logic")
+                            .bold()
+                    }.toggleStyle(.checkbox)
+                    Toggle(isOn: $customResources) {
+                        Text("Resources")
+                            .bold()
+                    }.toggleStyle(.checkbox)
+                    Toggle(isOn: $customObject) {
+                        Text("Object")
+                            .bold()
+                    }.toggleStyle(.checkbox)
+                    Toggle(isOn: $customTraces) {
+                        Text("Traces")
+                            .bold()
+                    }.toggleStyle(.checkbox)
+                    Toggle(isOn: $customProfiling) {
+                        Text("Profiling")
+                            .bold()
+                    }.toggleStyle(.checkbox)
+                }
+            }
+
+            Divider()
+                .padding(.vertical)
+
+            HStack {
+                Button {
+                    showSheet = false
+                } label: {
+                    Text("Cancel")
+                }
+                Spacer()
+                Button {
+                    showSheet = false
+                    sheetEnded = true
+                } label: {
+                    Text("Create")
+                }.buttonStyle(.borderedProminent)
+            }
         }.padding()
     }
 
