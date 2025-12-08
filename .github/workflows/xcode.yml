@@ -14,31 +14,86 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
     
-    - name: Select Xcode version
-      run: sudo xcode-select -s /Applications/Xcode_15.2.app/Contents/Developer
+    - name: List available Xcode versions
+      run: ls /Applications | grep Xcode
     
-    - name: Show Xcode version
-      run: xcodebuild -version
+    - name: Select latest Xcode
+      run: |
+        # Find the latest Xcode version installed
+        XCODE_PATH=$(find /Applications -maxdepth 1 -name "Xcode*.app" | sort -V | tail -n 1)
+        echo "Found Xcode at: $XCODE_PATH"
+        sudo xcode-select -s "$XCODE_PATH/Contents/Developer"
+        echo "Selected Xcode path: $(xcode-select -p)"
     
-    - name: Show Swift version
-      run: swift --version
+    - name: Show Xcode and Swift versions
+      run: |
+        xcodebuild -version
+        swift --version
+    
+    - name: Cache build artifacts
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/Library/Caches/org.swift.swiftpm
+          ~/Library/Developer/Xcode/DerivedData
+        key: ${{ runner.os }}-xcode-${{ hashFiles('**/*.xcodeproj') }}
+        restore-keys: |
+          ${{ runner.os }}-xcode-
+    
+    - name: Verify project exists
+      run: |
+        if [ ! -e "YourProject.xcodeproj" ] && [ ! -e "YourWorkspace.xcworkspace" ]; then
+          echo "Error: No .xcodeproj or .xcworkspace found!"
+          echo "Available files:"
+          ls -la
+          exit 1
+        fi
     
     - name: Build project
       run: |
+        # Determine if using workspace or project
+        if [ -e "YourWorkspace.xcworkspace" ]; then
+          BUILD_TYPE="-workspace YourWorkspace.xcworkspace"
+        else
+          BUILD_TYPE="-project YourProject.xcodeproj"
+        fi
+        
         xcodebuild clean build \
-          -project YourProject.xcodeproj \
+          $BUILD_TYPE \
           -scheme YourScheme \
           -configuration Debug \
           -destination 'platform=macOS' \
+          -derivedDataPath DerivedData \
           CODE_SIGN_IDENTITY="" \
-          CODE_SIGNING_REQUIRED=NO
+          CODE_SIGNING_REQUIRED=NO \
+          | xcpretty || exit ${PIPESTATUS[0]}
+      continue-on-error: false
     
-    - name: Run tests
+    - name: Run tests (optional)
+      if: success()
       run: |
+        # Determine if using workspace or project
+        if [ -e "YourWorkspace.xcworkspace" ]; then
+          BUILD_TYPE="-workspace YourWorkspace.xcworkspace"
+        else
+          BUILD_TYPE="-project YourProject.xcodeproj"
+        fi
+        
         xcodebuild test \
-          -project YourProject.xcodeproj \
+          $BUILD_TYPE \
           -scheme YourScheme \
           -configuration Debug \
           -destination 'platform=macOS' \
+          -derivedDataPath DerivedData \
           CODE_SIGN_IDENTITY="" \
-          CODE_SIGNING_REQUIRED=NO
+          CODE_SIGNING_REQUIRED=NO \
+          | xcpretty || exit ${PIPESTATUS[0]}
+    
+    - name: Upload build logs on failure
+      if: failure()
+      uses: actions/upload-artifact@v3
+      with:
+        name: build-logs
+        path: |
+          DerivedData/Logs
+          ~/Library/Developer/Xcode/DerivedData/**/Logs
