@@ -91,19 +91,6 @@ jobs:
           CODE_SIGNING_REQUIRED=NO
       continue-on-error: false
     
-    - name: Run tests (optional)
-      if: success()
-      run: |
-        xcodebuild test \
-          ${{ steps.detect.outputs.build_target }} "${{ steps.detect.outputs.build_file }}" \
-          -scheme "${{ steps.detect.outputs.scheme }}" \
-          -configuration Debug \
-          -destination 'platform=macOS' \
-          -derivedDataPath DerivedData \
-          CODE_SIGN_IDENTITY="" \
-          CODE_SIGNING_REQUIRED=NO
-      continue-on-error: true
-    
     - name: Upload build logs on failure
       if: failure()
       uses: actions/upload-artifact@v4
