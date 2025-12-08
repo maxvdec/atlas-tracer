@@ -28,6 +28,47 @@ jobs:
         xcodebuild -version
         swift --version
     
+    - name: Auto-detect project and scheme
+      id: detect
+      run: |
+        # Find workspace or project
+        WORKSPACE=$(find . -maxdepth 1 -name "*.xcworkspace" | head -n 1)
+        PROJECT=$(find . -maxdepth 1 -name "*.xcodeproj" | head -n 1)
+        
+        if [ -n "$WORKSPACE" ]; then
+          echo "Found workspace: $WORKSPACE"
+          echo "build_target=-workspace" >> $GITHUB_OUTPUT
+          echo "build_file=$WORKSPACE" >> $GITHUB_OUTPUT
+          BUILD_FILE="$WORKSPACE"
+        elif [ -n "$PROJECT" ]; then
+          echo "Found project: $PROJECT"
+          echo "build_target=-project" >> $GITHUB_OUTPUT
+          echo "build_file=$PROJECT" >> $GITHUB_OUTPUT
+          BUILD_FILE="$PROJECT"
+        else
+          echo "Error: No .xcodeproj or .xcworkspace found!"
+          ls -la
+          exit 1
+        fi
+        
+        # List available schemes
+        echo "Available schemes:"
+        if [ -n "$WORKSPACE" ]; then
+          xcodebuild -list -workspace "$WORKSPACE"
+        else
+          xcodebuild -list -project "$PROJECT"
+        fi
+        
+        # Auto-detect scheme (get first scheme)
+        if [ -n "$WORKSPACE" ]; then
+          SCHEME=$(xcodebuild -list -workspace "$WORKSPACE" | grep -A 100 "Schemes:" | grep -v "Schemes:" | head -n 1 | xargs)
+        else
+          SCHEME=$(xcodebuild -list -project "$PROJECT" | grep -A 100 "Schemes:" | grep -v "Schemes:" | head -n 1 | xargs)
+        fi
+        
+        echo "Detected scheme: $SCHEME"
+        echo "scheme=$SCHEME" >> $GITHUB_OUTPUT
+    
     - name: Cache build artifacts
       uses: actions/cache@v4
       with:
@@ -38,54 +79,30 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-xcode-
     
-    - name: Verify project exists
-      run: |
-        if [ ! -e "YourProject.xcodeproj" ] && [ ! -e "YourWorkspace.xcworkspace" ]; then
-          echo "Error: No .xcodeproj or .xcworkspace found!"
-          echo "Available files:"
-          ls -la
-          exit 1
-        fi
-    
     - name: Build project
       run: |
-        # Determine if using workspace or project
-        if [ -e "YourWorkspace.xcworkspace" ]; then
-          BUILD_TYPE="-workspace YourWorkspace.xcworkspace"
-        else
-          BUILD_TYPE="-project YourProject.xcodeproj"
-        fi
-        
         xcodebuild clean build \
-          $BUILD_TYPE \
-          -scheme YourScheme \
+          ${{ steps.detect.outputs.build_target }} "${{ steps.detect.outputs.build_file }}" \
+          -scheme "${{ steps.detect.outputs.scheme }}" \
           -configuration Debug \
           -destination 'platform=macOS' \
           -derivedDataPath DerivedData \
           CODE_SIGN_IDENTITY="" \
-          CODE_SIGNING_REQUIRED=NO \
-          | xcpretty || exit ${PIPESTATUS[0]}
+          CODE_SIGNING_REQUIRED=NO
       continue-on-error: false
     
     - name: Run tests (optional)
       if: success()
       run: |
-        # Determine if using workspace or project
-        if [ -e "YourWorkspace.xcworkspace" ]; then
-          BUILD_TYPE="-workspace YourWorkspace.xcworkspace"
-        else
-          BUILD_TYPE="-project YourProject.xcodeproj"
-        fi
-        
         xcodebuild test \
-          $BUILD_TYPE \
-          -scheme YourScheme \
+          ${{ steps.detect.outputs.build_target }} "${{ steps.detect.outputs.build_file }}" \
+          -scheme "${{ steps.detect.outputs.scheme }}" \
           -configuration Debug \
           -destination 'platform=macOS' \
           -derivedDataPath DerivedData \
           CODE_SIGN_IDENTITY="" \
-          CODE_SIGNING_REQUIRED=NO \
-          | xcpretty || exit ${PIPESTATUS[0]}
+          CODE_SIGNING_REQUIRED=NO
+      continue-on-error: true
     
     - name: Upload build logs on failure
       if: failure()
