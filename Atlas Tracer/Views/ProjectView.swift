@@ -55,6 +55,7 @@ struct ProjectView: View {
             VStack {
                 if selectedView == "Logs" {
                     LogView()
+                    Spacer()
                 }
             }
             .navigationTitle(project.title)

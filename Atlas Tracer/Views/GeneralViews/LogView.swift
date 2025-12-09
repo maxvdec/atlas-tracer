@@ -13,12 +13,14 @@ enum LogLevel {
     case error
 }
 
-struct LogEntry {
+struct LogEntry: Identifiable {
     let content: String
     let level: LogLevel
     let file: String
     let line: Int
     let time: Date
+
+    let id: UUID = .init()
 }
 
 struct LogCardView: View {
@@ -103,7 +105,7 @@ struct LogCardView: View {
                         .fill(colorFromLevel())
                         .frame(height: 30)
                 }
-                .padding(.top, 10)
+                .padding(.vertical, 10)
             }
         }
     }
@@ -111,11 +113,32 @@ struct LogCardView: View {
 
 struct LogView: View {
     @State private var logs: [LogEntry] = [
+        LogEntry(content: "Hello from the log!", level: .log, file: "idk.h", line: 1, time: .now),
+        LogEntry(content: "Hello from the log!", level: .warning, file: "idk.h", line: 1, time: .now),
+        LogEntry(content: "Hello from the log!", level: .error, file: "idk.h", line: 1, time: .now),
         LogEntry(content: "Hello from the log!", level: .log, file: "idk.h", line: 1, time: .now)
     ]
 
     var body: some View {
-        LogCardView(logEntry: logs[0], isLast: true).padding()
+        VStack {
+            VStack {
+                ScrollView {
+                    ForEach(logs) { log in
+                        LogCardView(logEntry: log, isLast: log.id == self.logs.last!.id)
+                            .padding(.vertical, 4)
+                    }
+                }
+            }.padding().background {
+                HStack {
+                    RoundedRectangle(cornerRadius: 10)
+                        .frame(width: 5)
+                        .padding(.vertical, 7)
+                        .padding(.leading, 70)
+                        .foregroundStyle(Color.blue)
+                    Spacer()
+                }
+            }
+        }
     }
 }
 
