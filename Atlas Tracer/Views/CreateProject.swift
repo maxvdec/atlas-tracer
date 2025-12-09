@@ -16,7 +16,7 @@ struct MainActionToggle: View {
     @Binding var selected: Int
 
     func isPressed() -> Bool {
-        if selected == id {
+        if self.selected == self.id {
             return true
         } else {
             return false
@@ -26,27 +26,27 @@ struct MainActionToggle: View {
     var body: some View {
         VStack(alignment: .center) {
             Button {
-                selected = id
+                self.selected = self.id
             } label: {
                 VStack {
-                    Image(systemName: icon)
+                    Image(systemName: self.icon)
                         .font(.system(size: 50))
-                        .foregroundStyle(color)
+                        .foregroundStyle(self.color)
                         .frame(width: 60, height: 60) // Fixed frame for icon
                         .padding(.horizontal, 5)
                         .padding(.vertical, 7)
                         .background {
-                            if isPressed() {
+                            if self.isPressed() {
                                 RoundedRectangle(cornerRadius: 8).foregroundStyle(Color.accentColor.opacity(0.2))
                             } else {
                                 VStack {}
                             }
                         }
-                    Text(name)
+                    Text(self.name)
                         .padding(5)
-                        .foregroundStyle(isPressed() ? Color.white : Color.primary)
+                        .foregroundStyle(self.isPressed() ? Color.white : Color.primary)
                         .background {
-                            if isPressed() {
+                            if self.isPressed() {
                                 RoundedRectangle(cornerRadius: 8).foregroundStyle(Color.accentColor)
                             } else {
                                 VStack {}
@@ -79,15 +79,32 @@ func getDebugTypeFromId(id: Int) -> String {
     }
 }
 
-enum LogType {
-    case warnings
-    case errors
-    case logs
+func getDebugEnumTypeFromId(id: Int) -> ProjectType {
+    switch id {
+    case 1:
+        return .custom
+    case 2:
+        return .graphics
+    case 3:
+        return .resources
+    case 4:
+        return .object
+    case 5:
+        return .logic
+    case 6:
+        return .traces
+    case 7:
+        return .profiling
+    default:
+        return .custom
+        return .custom
+    }
 }
 
 struct SelectLogsAndExecutableView: View {
     @Binding var showSheet: Bool
     @Binding var sheetEnded: Bool
+    @Binding var project: Project?
     var selected: Int = 1
 
     @State private var debugName: String = ""
@@ -105,27 +122,27 @@ struct SelectLogsAndExecutableView: View {
     @State private var logsOn: Bool = false
     var body: some View {
         VStack(alignment: .leading) {
-            Text("Creating a \(getDebugTypeFromId(id: selected)) Project...")
+            Text("Creating a \(getDebugTypeFromId(id: self.selected)) Project...")
                 .bold()
 
             // Project Details Section
-            TextField("Project Name", text: $debugName)
+            TextField("Project Name", text: self.$debugName)
                 .padding(.bottom)
-            if executablePath == nil {
+            if self.executablePath == nil {
                 Text("No executable selected")
                     .bold()
                     .padding(.bottom, 2)
                 Button {
-                    askExecutable()
+                    self.askExecutable()
                 } label: {
                     Text("Select an executable")
                 }.buttonStyle(.borderedProminent)
             } else {
-                Text("Selected executable: \(executablePath?.lastPathComponent ?? "no_executable")")
+                Text("Selected executable: \(self.executablePath?.lastPathComponent ?? "no_executable")")
                     .bold()
                     .padding(.bottom, 2)
                 Button {
-                    askExecutable()
+                    self.askExecutable()
                 } label: {
                     Text("Change the executable")
                 }
@@ -144,21 +161,21 @@ struct SelectLogsAndExecutableView: View {
                 .padding(.bottom, 5)
 
             VStack(alignment: .leading) {
-                Toggle(isOn: $errorsOn) {
+                Toggle(isOn: self.$errorsOn) {
                     Text("Errors")
                         .bold()
                 }.toggleStyle(.checkbox)
-                Toggle(isOn: $warningsOn) {
+                Toggle(isOn: self.$warningsOn) {
                     Text("Warnings")
                         .bold()
                 }.toggleStyle(.checkbox)
-                Toggle(isOn: $logsOn) {
+                Toggle(isOn: self.$logsOn) {
                     Text("Logs")
                         .bold()
                 }.toggleStyle(.checkbox)
             }
 
-            if selected == 1 {
+            if self.selected == 1 {
                 // Types of debugs
                 Divider()
                     .padding(.vertical)
@@ -167,27 +184,27 @@ struct SelectLogsAndExecutableView: View {
                     .bold()
 
                 VStack(alignment: .leading) {
-                    Toggle(isOn: $customGraphics) {
+                    Toggle(isOn: self.$customGraphics) {
                         Text("Graphics")
                             .bold()
                     }.toggleStyle(.checkbox)
-                    Toggle(isOn: $customLogic) {
+                    Toggle(isOn: self.$customLogic) {
                         Text("Logic")
                             .bold()
                     }.toggleStyle(.checkbox)
-                    Toggle(isOn: $customResources) {
+                    Toggle(isOn: self.$customResources) {
                         Text("Resources")
                             .bold()
                     }.toggleStyle(.checkbox)
-                    Toggle(isOn: $customObject) {
+                    Toggle(isOn: self.$customObject) {
                         Text("Object")
                             .bold()
                     }.toggleStyle(.checkbox)
-                    Toggle(isOn: $customTraces) {
+                    Toggle(isOn: self.$customTraces) {
                         Text("Traces")
                             .bold()
                     }.toggleStyle(.checkbox)
-                    Toggle(isOn: $customProfiling) {
+                    Toggle(isOn: self.$customProfiling) {
                         Text("Profiling")
                             .bold()
                     }.toggleStyle(.checkbox)
@@ -199,14 +216,15 @@ struct SelectLogsAndExecutableView: View {
 
             HStack {
                 Button {
-                    showSheet = false
+                    self.showSheet = false
                 } label: {
                     Text("Cancel")
                 }
                 Spacer()
                 Button {
-                    showSheet = false
-                    sheetEnded = true
+                    self.createProjectObject()
+                    self.showSheet = false
+                    self.sheetEnded = true
                 } label: {
                     Text("Create")
                 }.buttonStyle(.borderedProminent)
@@ -220,7 +238,43 @@ struct SelectLogsAndExecutableView: View {
         panel.canChooseDirectories = false
         panel.allowedContentTypes = [.executable]
 
-        return panel.runModal() == .OK ? (executablePath = panel.url) : ()
+        return panel.runModal() == .OK ? (self.executablePath = panel.url) : ()
+    }
+
+    func createProjectObject() {
+        let newProject = Project()
+        newProject.title = self.debugName
+        newProject.mainProjectType = getDebugEnumTypeFromId(id: self.selected)
+        if self.errorsOn {
+            newProject.logTypes.append(.errors)
+        }
+        if self.warningsOn {
+            newProject.logTypes.append(.warnings)
+        }
+        if self.logsOn {
+            newProject.logTypes.append(.logs)
+        }
+
+        if self.customLogic {
+            newProject.customProjectTypes.append(.logic)
+        }
+        if self.customObject {
+            newProject.customProjectTypes.append(.object)
+        }
+        if self.customGraphics {
+            newProject.customProjectTypes.append(.graphics)
+        }
+        if self.customProfiling {
+            newProject.customProjectTypes.append(.profiling)
+        }
+        if self.customResources {
+            newProject.customProjectTypes.append(.resources)
+        }
+        if self.customTraces {
+            newProject.customProjectTypes.append(.traces)
+        }
+
+        self.project = newProject
     }
 }
 
@@ -228,6 +282,15 @@ struct CreateProjectView: View {
     @State private var selected: Int = 1
     @State private var showSheet: Bool = false
     @State private var sheetEnded: Bool = false
+
+    @State private var project: Project? = nil
+
+    @Environment(\.openWindow) private var openWindow
+    @Environment(\.dismissWindow) private var dismissWindow
+    @Environment(\.appEnv) private var environment
+
+    func createProject() {}
+
     var body: some View {
         VStack(alignment: .leading) {
             Text("Choose a project style to begin...")
@@ -236,26 +299,26 @@ struct CreateProjectView: View {
             VStack {
                 HStack {
                     MainActionToggle(icon: "square.dashed",
-                                     name: "Custom", color: Color.blue, id: 1, selected: $selected)
+                                     name: "Custom", color: Color.blue, id: 1, selected: self.$selected)
                         .padding(.trailing, 20)
                     MainActionToggle(icon: "rotate.3d",
-                                     name: "Graphics", color: Color.red, id: 2, selected: $selected)
+                                     name: "Graphics", color: Color.red, id: 2, selected: self.$selected)
                         .padding(.trailing, 20)
                     MainActionToggle(icon: "archivebox",
-                                     name: "Resources", color: Color.purple, id: 3, selected: $selected)
+                                     name: "Resources", color: Color.purple, id: 3, selected: self.$selected)
                         .padding(.trailing, 20)
                     MainActionToggle(icon: "scale.3d",
-                                     name: "Objects", color: Color.orange, id: 4, selected: $selected)
+                                     name: "Objects", color: Color.orange, id: 4, selected: self.$selected)
                         .padding(.trailing, 20)
                     MainActionToggle(icon: "cpu",
-                                     name: "Logic", color: Color.green, id: 5, selected: $selected)
+                                     name: "Logic", color: Color.green, id: 5, selected: self.$selected)
                 }
                 HStack {
                     MainActionToggle(icon: "memorychip",
-                                     name: "Traces", color: Color.yellow, id: 6, selected: $selected)
+                                     name: "Traces", color: Color.yellow, id: 6, selected: self.$selected)
                         .padding(.trailing, 20)
                     MainActionToggle(icon: "clock",
-                                     name: "Profiling", color: Color.teal, id: 7, selected: $selected)
+                                     name: "Profiling", color: Color.teal, id: 7, selected: self.$selected)
                 }
             }
             HStack {
@@ -265,14 +328,21 @@ struct CreateProjectView: View {
 
                 Spacer()
                 Button {
-                    showSheet = true
+                    self.showSheet = true
                 } label: {
                     Text("Create")
                 }.buttonStyle(.borderedProminent)
             }
         }.padding().frame(width: 500, height: 320, alignment: .topLeading).focusable(false)
-            .sheet(isPresented: $showSheet) {
-                SelectLogsAndExecutableView(showSheet: $showSheet, sheetEnded: $sheetEnded, selected: selected)
+            .sheet(isPresented: self.$showSheet) {
+                SelectLogsAndExecutableView(showSheet: self.$showSheet, sheetEnded: self.$sheetEnded, project: self.$project, selected: self.selected)
+            }
+            .onChange(of: self.sheetEnded) {
+                if self.sheetEnded {
+                    self.environment.currentProject = self.project
+                    self.openWindow(id: "project-view")
+                    self.dismissWindow(id: "create-debug-session")
+                }
             }
     }
 }
@@ -282,5 +352,5 @@ struct CreateProjectView: View {
 }
 
 #Preview("LogsAndExecutable") {
-    SelectLogsAndExecutableView(showSheet: .constant(false), sheetEnded: .constant(false))
+    SelectLogsAndExecutableView(showSheet: .constant(false), sheetEnded: .constant(false), project: .constant(nil))
 }
