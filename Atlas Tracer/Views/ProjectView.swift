@@ -52,17 +52,21 @@ struct ProjectView: View {
                 }
             }.navigationTitle("Sidebar")
         } detail: {
-            VStack {}
-                .navigationTitle(project.title)
-                .navigationSubtitle(projectState)
-                .toolbar {
-                    Button {} label: {
-                        Image(systemName: "play.fill")
-                    }.help("Start the debug session")
-                    Button {} label: {
-                        Image(systemName: "rectangle.on.rectangle")
-                    }.help("Step frame by frame")
+            VStack {
+                if selectedView == "Logs" {
+                    LogView()
                 }
+            }
+            .navigationTitle(project.title)
+            .navigationSubtitle(projectState)
+            .toolbar {
+                Button {} label: {
+                    Image(systemName: "play.fill")
+                }.help("Start the debug session")
+                Button {} label: {
+                    Image(systemName: "rectangle.on.rectangle")
+                }.help("Step frame by frame")
+            }
         }
     }
 }
