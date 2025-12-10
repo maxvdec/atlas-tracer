@@ -19,7 +19,7 @@ struct ProjectView: View {
         }
     }
 
-    @State private var selectedView: String = ""
+    @State private var selectedView: String = "Logs"
     @State private var projectState: String = "Not started"
 
     var body: some View {

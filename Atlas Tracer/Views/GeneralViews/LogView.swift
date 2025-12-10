@@ -119,13 +119,61 @@ struct LogView: View {
         LogEntry(content: "Hello from the log!", level: .log, file: "idk.h", line: 1, time: .now)
     ]
 
+    @State private var selectedFilter = 0
+
+    @Environment(\.appEnv) private var environment
+
+    var project: Project {
+        if environment.currentProject != nil {
+            return environment.currentProject!
+        } else {
+            environment.currentProject = Project.createSample()
+            return environment.currentProject!
+        }
+    }
+
+    func applyFilter(log: LogEntry) -> Bool {
+        switch selectedFilter {
+        case 0:
+            return true
+        case 1:
+            return log.level == .log
+        case 2:
+            return log.level == .warning
+        case 3:
+            return log.level == .error
+        default:
+            return false
+        }
+    }
+
     var body: some View {
-        VStack {
+        VStack(alignment: .leading) {
+            Text("Logs")
+                .font(.title)
+                .bold()
+                .padding(.horizontal)
+                .padding(.top)
+            Picker("Filter", selection: $selectedFilter) {
+                Text("All").tag(0)
+                if project.logTypes.contains(.logs) {
+                    Text("Logs").tag(1)
+                }
+                if project.logTypes.contains(.warnings) {
+                    Text("Warnings").tag(2)
+                }
+                if project.logTypes.contains(.errors) {
+                    Text("Errors").tag(3)
+                }
+            }.pickerStyle(.segmented).padding(.horizontal)
             VStack {
                 ScrollView {
                     ForEach(logs) { log in
-                        LogCardView(logEntry: log, isLast: log.id == self.logs.last!.id)
-                            .padding(.vertical, 4)
+                        if applyFilter(log: log) {
+                            LogCardView(logEntry: log, isLast: log.id == self.logs.last!.id)
+                                .padding(.vertical, 4)
+                                .padding(.horizontal, 10)
+                        }
                     }
                 }
             }.padding().background {
