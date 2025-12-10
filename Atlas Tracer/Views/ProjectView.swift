@@ -19,7 +19,7 @@ struct ProjectView: View {
         }
     }
 
-    @State private var selectedView: String = "Logs"
+    @State private var selectedView: String = "Graphics"
     @State private var projectState: String = "Not started"
 
     var body: some View {
@@ -57,6 +57,10 @@ struct ProjectView: View {
                     LogView()
                     Spacer()
                 }
+                if selectedView == "graphics" {
+                    GraphicsView()
+                    Spacer()
+                }
             }
             .navigationTitle(project.title)
             .navigationSubtitle(projectState)
@@ -67,6 +71,8 @@ struct ProjectView: View {
                 Button {} label: {
                     Image(systemName: "rectangle.on.rectangle")
                 }.help("Step frame by frame")
+            }.onChange(of: selectedView) {
+                print(selectedView)
             }
         }
     }

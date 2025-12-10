@@ -97,7 +97,6 @@ func getDebugEnumTypeFromId(id: Int) -> ProjectType {
         return .profiling
     default:
         return .custom
-        return .custom
     }
 }
 
@@ -105,7 +104,7 @@ struct SelectLogsAndExecutableView: View {
     @Binding var showSheet: Bool
     @Binding var sheetEnded: Bool
     @Binding var project: Project?
-    var selected: Int = 1
+    var selected: Int
 
     @State private var debugName: String = ""
     @State private var executablePath: URL? = nil
@@ -352,5 +351,5 @@ struct CreateProjectView: View {
 }
 
 #Preview("LogsAndExecutable") {
-    SelectLogsAndExecutableView(showSheet: .constant(false), sheetEnded: .constant(false), project: .constant(nil))
+    SelectLogsAndExecutableView(showSheet: .constant(false), sheetEnded: .constant(false), project: .constant(nil), selected: 0)
 }
