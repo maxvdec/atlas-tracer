@@ -61,6 +61,10 @@ struct ProjectView: View {
                     GraphicsView()
                     Spacer()
                 }
+                if selectedView == "logic" {
+                    LogicView()
+                    Spacer()
+                }
             }
             .navigationTitle(project.title)
             .navigationSubtitle(projectState)
