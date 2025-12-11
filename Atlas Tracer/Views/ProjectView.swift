@@ -69,6 +69,10 @@ struct ProjectView: View {
                     ResourcesView()
                     Spacer()
                 }
+                if selectedView == "profiling" {
+                    ProfilingView()
+                    Spacer()
+                }
             }
             .navigationTitle(project.title)
             .navigationSubtitle(projectState)
