@@ -26,14 +26,8 @@ struct ProjectView: View {
         NavigationSplitView {
             List(selection: $selectedView) {
                 Section("General") {
-                    NavigationLink(value: "Dashboard") {
-                        Label("Dashboard", systemImage: "menubar.rectangle")
-                    }
                     NavigationLink(value: "Logs") {
                         Label("Logs", systemImage: "apple.terminal")
-                    }
-                    NavigationLink(value: "Settings") {
-                        Label("Settings", systemImage: "gear")
                     }
                 }
 
@@ -71,6 +65,10 @@ struct ProjectView: View {
                 }
                 if selectedView == "profiling" {
                     ProfilingView()
+                    Spacer()
+                }
+                if selectedView == "traces" {
+                    MemoryTracesView()
                     Spacer()
                 }
             }
