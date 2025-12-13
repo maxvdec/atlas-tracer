@@ -85,6 +85,10 @@ struct ProjectView: View {
                     RuntimeVariablesView()
                     Spacer()
                 }
+                if selectedView == "console" {
+                    ConsoleView()
+                    Spacer()
+                }
             }
             .navigationTitle(project.title)
             .navigationSubtitle(projectState)
