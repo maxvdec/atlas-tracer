@@ -21,6 +21,7 @@ struct ProjectView: View {
 
     @State private var selectedView: String = "logs"
     @State private var projectState: String = "Not started"
+    @State private var listener: Listener? = nil
 
     var body: some View {
         NavigationSplitView {
@@ -134,6 +135,11 @@ struct ProjectView: View {
                 }
             }.onChange(of: selectedView) {
                 print(selectedView)
+            }
+            .onAppear {
+                print("Initializing the listener")
+                listener = Listener(port: 5123)
+                listener?.start()
             }
         }
     }
