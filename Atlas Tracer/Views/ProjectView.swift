@@ -27,7 +27,13 @@ struct ProjectView: View {
             List(selection: $selectedView) {
                 Section("General") {
                     NavigationLink(value: "logs") {
-                        Label("Logs", systemImage: "apple.terminal")
+                        Label("Logs", systemImage: "book.pages")
+                    }
+                    NavigationLink(value: "variables") {
+                        Label("Runtime Variables", systemImage: "arrow.trianglehead.branch")
+                    }
+                    NavigationLink(value: "console") {
+                        Label("Console", systemImage: "apple.terminal")
                     }
                 }
 
@@ -73,6 +79,10 @@ struct ProjectView: View {
                 }
                 if selectedView == "object" {
                     ObjectView()
+                    Spacer()
+                }
+                if selectedView == "variables" {
+                    RuntimeVariablesView()
                     Spacer()
                 }
             }

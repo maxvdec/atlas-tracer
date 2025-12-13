@@ -104,7 +104,7 @@ struct SelectLogsAndExecutableView: View {
     @Binding var showSheet: Bool
     @Binding var sheetEnded: Bool
     @Binding var project: Project?
-    var selected: Int
+    @Binding var selected: Int
 
     @State private var debugName: String = ""
     @State private var executablePath: URL? = nil
@@ -334,7 +334,7 @@ struct CreateProjectView: View {
             }
         }.padding().frame(width: 500, height: 320, alignment: .topLeading).focusable(false)
             .sheet(isPresented: self.$showSheet) {
-                SelectLogsAndExecutableView(showSheet: self.$showSheet, sheetEnded: self.$sheetEnded, project: self.$project, selected: self.selected)
+                SelectLogsAndExecutableView(showSheet: self.$showSheet, sheetEnded: self.$sheetEnded, project: self.$project, selected: self.$selected)
             }
             .onChange(of: self.sheetEnded) {
                 if self.sheetEnded {
@@ -351,5 +351,5 @@ struct CreateProjectView: View {
 }
 
 #Preview("LogsAndExecutable") {
-    SelectLogsAndExecutableView(showSheet: .constant(false), sheetEnded: .constant(false), project: .constant(nil), selected: 0)
+    SelectLogsAndExecutableView(showSheet: .constant(false), sheetEnded: .constant(false), project: .constant(nil), selected: .constant(0))
 }
