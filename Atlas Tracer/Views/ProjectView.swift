@@ -19,14 +19,14 @@ struct ProjectView: View {
         }
     }
 
-    @State private var selectedView: String = "Graphics"
+    @State private var selectedView: String = "logs"
     @State private var projectState: String = "Not started"
 
     var body: some View {
         NavigationSplitView {
             List(selection: $selectedView) {
                 Section("General") {
-                    NavigationLink(value: "Logs") {
+                    NavigationLink(value: "logs") {
                         Label("Logs", systemImage: "apple.terminal")
                     }
                 }
@@ -47,7 +47,7 @@ struct ProjectView: View {
             }.navigationTitle("Sidebar")
         } detail: {
             VStack {
-                if selectedView == "Logs" {
+                if selectedView == "logs" {
                     LogView()
                     Spacer()
                 }
@@ -79,12 +79,45 @@ struct ProjectView: View {
             .navigationTitle(project.title)
             .navigationSubtitle(projectState)
             .toolbar {
-                Button {} label: {
-                    Image(systemName: "play.fill")
-                }.help("Start the debug session")
-                Button {} label: {
-                    Image(systemName: "rectangle.on.rectangle")
-                }.help("Step frame by frame")
+                if projectState != "Stepping..." {
+                    Button {
+                        withAnimation {
+                            if projectState == "Not started" {
+                                projectState = "Started"
+                            } else {
+                                projectState = "Not started"
+                            }
+                        }
+                    } label: {
+                        if projectState == "Not started" {
+                            Image(systemName: "play.fill")
+                        } else {
+                            Image(systemName: "stop.fill")
+                        }
+                    }.help("Start the debug session")
+                }
+                if projectState == "Stepping..." || projectState == "Not started" {
+                    Button {
+                        withAnimation {
+                            if projectState == "Stepping..." {
+                                projectState = "Not started"
+                            } else {
+                                projectState = "Stepping..."
+                            }
+                        }
+                    } label: {
+                        if projectState == "Stepping..." {
+                            Image(systemName: "stop.fill")
+                        } else {
+                            Image(systemName: "rectangle.on.rectangle")
+                        }
+                    }.help("Step frame by frame")
+                }
+                if projectState == "Stepping..." {
+                    Button {} label: {
+                        Image(systemName: "forward.circle.fill")
+                    }.help("Step a frame")
+                }
             }.onChange(of: selectedView) {
                 print(selectedView)
             }
