@@ -71,6 +71,10 @@ struct ProjectView: View {
                     MemoryTracesView()
                     Spacer()
                 }
+                if selectedView == "object" {
+                    ObjectView()
+                    Spacer()
+                }
             }
             .navigationTitle(project.title)
             .navigationSubtitle(projectState)
