@@ -30,14 +30,14 @@ enum DrawCallType: String, Codable, CaseIterable {
     }
 }
 
-struct DrawCall {
+struct DrawCall { // Sent from the client
     let callerObjectId: String
     let time: Date
     let type: DrawCallType
     let frame: Int
 }
 
-struct FrameData: Identifiable {
+struct FrameData: Identifiable { // Sent from the client
     let id = UUID()
     let frame: Int
     let drawCallCount: Int

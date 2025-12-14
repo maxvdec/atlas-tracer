@@ -9,7 +9,6 @@ import Foundation
 
 enum ProjectType: String, Decodable, Encodable, Identifiable, CaseIterable {
     case graphics
-    case logic
     case resources
     case object
     case traces
@@ -21,7 +20,6 @@ enum ProjectType: String, Decodable, Encodable, Identifiable, CaseIterable {
     func getName() -> String {
         switch self {
         case .graphics: return "Graphics"
-        case .logic: return "Logic"
         case .resources: return "Resources"
         case .object: return "Object"
         case .traces: return "Traces"
@@ -33,7 +31,6 @@ enum ProjectType: String, Decodable, Encodable, Identifiable, CaseIterable {
     func getIconName() -> String {
         switch self {
         case .graphics: return "rotate.3d"
-        case .logic: return "cpu"
         case .resources: return "archivebox"
         case .custom: return "square.dashed"
         case .profiling: return "clock"
@@ -61,7 +58,7 @@ class Project: Identifiable, Decodable, Encodable {
         let project = Project()
         project.logTypes = [.errors, .logs, .warnings]
         project.mainProjectType = .custom
-        project.customProjectTypes = [.graphics, .logic, .resources, .profiling, .traces, .object]
+        project.customProjectTypes = [.graphics, .resources, .profiling, .traces, .object]
         project.title = "No Project"
         return project
     }

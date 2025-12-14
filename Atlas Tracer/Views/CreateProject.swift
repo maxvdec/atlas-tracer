@@ -69,7 +69,7 @@ func getDebugTypeFromId(id: Int) -> String {
     case 4:
         return "Objects"
     case 5:
-        return "Logic"
+        return ""
     case 6:
         return "Traces"
     case 7:
@@ -90,7 +90,7 @@ func getDebugEnumTypeFromId(id: Int) -> ProjectType {
     case 4:
         return .object
     case 5:
-        return .logic
+        return .custom
     case 6:
         return .traces
     case 7:
@@ -110,7 +110,6 @@ struct SelectLogsAndExecutableView: View {
     @State private var executablePath: URL? = nil
 
     @State private var customGraphics: Bool = false
-    @State private var customLogic: Bool = false
     @State private var customResources: Bool = false
     @State private var customObject: Bool = false
     @State private var customTraces: Bool = false
@@ -187,10 +186,6 @@ struct SelectLogsAndExecutableView: View {
                         Text("Graphics")
                             .bold()
                     }.toggleStyle(.checkbox)
-                    Toggle(isOn: self.$customLogic) {
-                        Text("Logic")
-                            .bold()
-                    }.toggleStyle(.checkbox)
                     Toggle(isOn: self.$customResources) {
                         Text("Resources")
                             .bold()
@@ -254,9 +249,6 @@ struct SelectLogsAndExecutableView: View {
             newProject.logTypes.append(.logs)
         }
 
-        if self.customLogic {
-            newProject.customProjectTypes.append(.logic)
-        }
         if self.customObject {
             newProject.customProjectTypes.append(.object)
         }
@@ -309,15 +301,12 @@ struct CreateProjectView: View {
                     MainActionToggle(icon: "scale.3d",
                                      name: "Objects", color: Color.orange, id: 4, selected: self.$selected)
                         .padding(.trailing, 20)
-                    MainActionToggle(icon: "cpu",
-                                     name: "Logic", color: Color.green, id: 5, selected: self.$selected)
+                    MainActionToggle(icon: "clock",
+                                     name: "Profiling", color: Color.teal, id: 7, selected: self.$selected)
                 }
                 HStack {
                     MainActionToggle(icon: "memorychip",
                                      name: "Traces", color: Color.yellow, id: 6, selected: self.$selected)
-                        .padding(.trailing, 20)
-                    MainActionToggle(icon: "clock",
-                                     name: "Profiling", color: Color.teal, id: 7, selected: self.$selected)
                 }
             }
             HStack {

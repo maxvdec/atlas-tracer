@@ -62,10 +62,6 @@ struct ProjectView: View {
                     GraphicsView()
                     Spacer()
                 }
-                if selectedView == "logic" {
-                    LogicView()
-                    Spacer()
-                }
                 if selectedView == "resources" {
                     ResourcesView()
                     Spacer()

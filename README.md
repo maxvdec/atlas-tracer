@@ -17,7 +17,6 @@ deciphers to give the user real-time data of what's going on the inside of the c
 Atlas Tracer works with different types of *sessions*, which they are basically different types of information that it can display:
 
 * Graphics Sessions: These are focused on draw calls and performance of the Graphics Engine and Vulkan.
-* Logic Sessions: These are focused on what the engine is doing besides rendering, like computing atmosphere or the other decisions it is taking.
 * Resource Sessions: These are focused on what resources is the engine loading, how much time it spends doing it and other insights.
 * Object Sessions: These are focused on the objects rendered in the screen, meaning triangle count, and general computing time insights.
 * Trace Sessions: These are focused on how many memory is the engine using, including also render buffers.
