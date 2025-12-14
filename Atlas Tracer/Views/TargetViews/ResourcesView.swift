@@ -48,7 +48,7 @@ enum ResourceOperation {
     case unloaded
 }
 
-struct ResourceEvent {
+struct ResourceEvent { // Obtained from the engine
     let objectId: String
     let type: ResourceType
     let operation: ResourceOperation
@@ -57,7 +57,7 @@ struct ResourceEvent {
     let sizeMB: Double
 }
 
-struct ResourcesFrameData: Identifiable {
+struct ResourcesFrameData: Identifiable { // Obtained from the engine
     let id = UUID()
     let frame: Int
     let frameTime: Double

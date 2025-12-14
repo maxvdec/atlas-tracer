@@ -48,16 +48,12 @@ struct TracedObject: Identifiable, Hashable {
 
     let triangleCount: Int
     let materialCount: Int
-    let submeshCount: Int
 
     let vertexMemoryMB: Double
     let indexMemoryMB: Double
     let textureMemoryMB: Double
-    let uniformMemoryMB: Double
 
     let recentDrawCalls: Int
-    let visibleInFrames: Int
-    let lastUpdatedFrame: Int
 }
 
 struct ObjectMetricSample: Identifiable {
@@ -243,8 +239,6 @@ struct ObjectView: View {
 
             Text("\(o.materialCount)").frame(width: 90, alignment: .trailing).monospacedDigit()
 
-            Text("\(o.submeshCount)").frame(width: 90, alignment: .trailing).monospacedDigit()
-
             Text(String(format: "%.1f", o.totalMemoryMB))
                 .frame(width: 120, alignment: .trailing)
                 .monospacedDigit()
@@ -327,16 +321,13 @@ struct ObjectView: View {
                     HStack(spacing: 24) {
                         statTile(title: "Triangles", value: o.triangleCount.formatted(.number.grouping(.automatic)))
                         statTile(title: "Materials", value: "\(o.materialCount)")
-                        statTile(title: "Submeshes", value: "\(o.submeshCount)")
                         statTile(title: "Recent Draw Calls", value: "\(o.recentDrawCalls)")
-                        statTile(title: "Visible Frames", value: "\(o.visibleInFrames)")
                     }
 
                     HStack(spacing: 24) {
                         statTile(title: "Vertex Mem", value: String(format: "%.1f MB", o.vertexMemoryMB))
                         statTile(title: "Index Mem", value: String(format: "%.1f MB", o.indexMemoryMB))
                         statTile(title: "Texture Mem", value: String(format: "%.1f MB", o.textureMemoryMB))
-                        statTile(title: "Uniform Mem", value: String(format: "%.1f MB", o.uniformMemoryMB))
                         statTile(title: "Total Mem", value: String(format: "%.1f MB", o.totalMemoryMB))
                     }
 
@@ -455,7 +446,6 @@ struct ObjectView: View {
             }()
 
             let materials = Int.random(in: 1...8, using: &rng)
-            let submeshes = Int.random(in: 1...12, using: &rng)
 
             let vertexMB = Double(tri) * 3.0 * 24.0 / (1_024.0 * 1_024.0) * Double.random(in: 0.8...1.3, using: &rng)
             let indexMB = Double(tri) * 3.0 * 4.0 / (1_024.0 * 1_024.0) * Double.random(in: 0.8...1.2, using: &rng) //
@@ -463,22 +453,16 @@ struct ObjectView: View {
             let uniformMB = Double.random(in: 0.05...0.5, using: &rng)
 
             let recentDC = Int.random(in: 0...120, using: &rng)
-            let visFrames = Int.random(in: 20...frameCount, using: &rng)
-            let lastUpd = Int.random(in: 0..<frameCount, using: &rng)
 
             let obj = TracedObject(
                 name: "Object_\(i)",
                 category: cat,
                 triangleCount: tri,
                 materialCount: materials,
-                submeshCount: submeshes,
                 vertexMemoryMB: vertexMB,
                 indexMemoryMB: indexMB,
                 textureMemoryMB: textureMB,
-                uniformMemoryMB: uniformMB,
                 recentDrawCalls: recentDC,
-                visibleInFrames: visFrames,
-                lastUpdatedFrame: lastUpd
             )
             objects.append(obj)
         }
@@ -514,7 +498,7 @@ struct ObjectView: View {
 
 private extension TracedObject {
     var totalMemoryMB: Double {
-        vertexMemoryMB + indexMemoryMB + textureMemoryMB + uniformMemoryMB
+        vertexMemoryMB + indexMemoryMB + textureMemoryMB
     }
 }
 

@@ -51,7 +51,7 @@ enum Subsystem: String, CaseIterable, Codable, Hashable {
     }
 }
 
-struct ProfileEvent: Identifiable {
+struct ProfileEvent: Identifiable { // Get from Engine
     let id = UUID()
     let frame: Int
     let name: String
@@ -62,7 +62,7 @@ struct ProfileEvent: Identifiable {
     var endMs: Double { startMs + durationMs }
 }
 
-struct FrameTiming: Identifiable {
+struct FrameTiming: Identifiable { // Get from Engine
     let id = UUID()
     let frame: Int
     let cpuMs: Double

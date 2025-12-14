@@ -80,7 +80,7 @@ enum ResourceKind: String, CaseIterable, Codable, Hashable, Identifiable {
     }
 }
 
-struct Allocation: Identifiable {
+struct Allocation: Identifiable { // Get from the engine
     let id = UUID()
     let label: String
     let kind: ResourceKind
@@ -91,7 +91,7 @@ struct Allocation: Identifiable {
     let owner: String?
 }
 
-struct FrameMemory: Identifiable {
+struct FrameMemory: Identifiable { // Get from the engine
     let id = UUID()
     let frame: Int
     let totalMB: Double
