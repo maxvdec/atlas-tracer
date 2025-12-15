@@ -237,6 +237,9 @@ struct SelectLogsAndExecutableView: View {
 
     func createProjectObject() {
         let newProject = Project()
+        if self.debugName.isEmpty || self.executablePath == nil {
+            return
+        }
         newProject.title = self.debugName
         newProject.mainProjectType = getDebugEnumTypeFromId(id: self.selected)
         if self.errorsOn {
@@ -265,6 +268,7 @@ struct SelectLogsAndExecutableView: View {
             newProject.customProjectTypes.append(.traces)
         }
 
+        newProject.executablePath = self.executablePath!.absoluteString
         self.project = newProject
     }
 }

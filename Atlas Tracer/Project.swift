@@ -51,6 +51,7 @@ class Project: Identifiable, Decodable, Encodable {
     var mainProjectType: ProjectType = .custom
     var customProjectTypes: [ProjectType] = []
     var title: String = ""
+    var executablePath: String = ""
 
     init() {}
 
@@ -60,6 +61,7 @@ class Project: Identifiable, Decodable, Encodable {
         project.mainProjectType = .custom
         project.customProjectTypes = [.graphics, .resources, .profiling, .traces, .object]
         project.title = "No Project"
+        project.executablePath = "/usr/bin/yes"
         return project
     }
 }
