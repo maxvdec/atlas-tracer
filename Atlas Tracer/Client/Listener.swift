@@ -14,11 +14,13 @@ class Listener {
     private let port: UInt16
     private var listener: NWListener?
     private let queue: DispatchQueue = .init(label: "ListenerQueue", qos: .background)
+    private var interpreter: Interpreter
     
     private(set) var messageHistory: [String] = []
     
-    init(port: UInt16) {
+    init(port: UInt16, interpreter: Interpreter) {
         self.port = port
+        self.interpreter = interpreter
     }
     
     func start() {
@@ -43,7 +45,7 @@ class Listener {
         connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { [weak self] data, _, isComplete, _ in
             if let data = data, !data.isEmpty {
                 let text = String(decoding: data, as: UTF8.self)
-                print("Received: \(text)")
+                self?.interpreter.incoming(text)
                 
                 self?.messageHistory.append(text)
             }

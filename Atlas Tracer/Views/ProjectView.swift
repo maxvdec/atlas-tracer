@@ -37,7 +37,7 @@ struct ProjectView: View {
         process.currentDirectoryURL = executableURL.deletingLastPathComponent()
         process.environment = ProcessInfo.processInfo.environment
 
-        listener = Listener(port: 5123)
+        listener = Listener(port: 5123, interpreter: MainInterpreter())
         listener?.start()
 
         do {
