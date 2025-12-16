@@ -256,7 +256,10 @@ struct GraphicsView: View {
                 }
             }
             
-            drawCallsChart.frame(height: 250)
+            ScrollView(.horizontal, showsIndicators: true) {
+                drawCallsChart
+                    .frame(width: max(600, CGFloat(frameData.count) * 20), height: 250)
+            }
             
             HStack(spacing: 30) {
                 StatColumn(title: "Total Frames", value: "\(stats.totalFrames)", color: .primary)
