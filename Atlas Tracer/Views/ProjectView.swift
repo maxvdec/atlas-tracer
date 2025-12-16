@@ -72,7 +72,7 @@ struct ProjectView: View {
 
                         Section("Targets") {
                             if project.mainProjectType != .custom {
-                                NavigationLink(value: project.mainProjectType.getName()) {
+                                NavigationLink(value: project.mainProjectType.getName().lowercased()) {
                                     Label(project.mainProjectType.getName(), systemImage: project.mainProjectType.getIconName())
                                 }
                             } else {
