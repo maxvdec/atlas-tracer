@@ -141,6 +141,67 @@ struct DebugObjectPacket: Codable, Equatable {
     }
 }
 
+enum DebugMemoryDomain: Int, Codable {
+    case GPU = 1
+    case CPU = 2
+}
+
+enum DebugMemoryResourceKind: Int, Codable {
+    case vertexBuffer = 1
+    case indexBuffer = 2
+    case uniformBuffer = 3
+    case storageBuffer = 4
+    case texture2d = 5
+    case texture3d = 6
+    case textureCube = 7
+    case renderTarget = 8
+    case depthStencil = 9
+    case sampler = 10
+    case pipelineCache = 11
+    case accelerationStructure = 12
+    case other = 13
+}
+
+struct AllocationPacket: Codable, Equatable {
+    let description: String
+    let owner: String
+    let domain: DebugMemoryDomain
+    let kind: DebugMemoryResourceKind
+    let sizeMb: Float
+    let frameNumber: Int
+    let type: String
+
+    enum CodingKeys: String, CodingKey {
+        case description
+        case owner
+        case domain
+        case kind
+        case sizeMb = "size_mb"
+        case frameNumber = "frame_number"
+        case type
+    }
+}
+
+struct FrameMemoryPacket: Codable, Equatable {
+    let type: String
+    let frameNumber: Int
+    let totalAllocatedMb: Float
+    let totalGPUMb: Float
+    let totalCPUMb: Float
+    let allocationCount: Int
+    let deallocationCount: Int
+
+    enum CodingKeys: String, CodingKey {
+        case type
+        case frameNumber = "frame_number"
+        case totalAllocatedMb = "total_allocated_mb"
+        case totalGPUMb = "total_gpu_mb"
+        case totalCPUMb = "total_cpu_mb"
+        case allocationCount = "allocation_count"
+        case deallocationCount = "deallocation_count"
+    }
+}
+
 final class DebugInformation: ObservableObject {
     static let shared = DebugInformation()
 
@@ -150,6 +211,8 @@ final class DebugInformation: ObservableObject {
     @Published var resourceEvents: [DebugResourceEvent] = []
     @Published var frameResourceInformation: [DebugFrameResourceInformation] = []
     @Published var objectData: [DebugObjectPacket] = []
+    @Published var allocationPackets: [AllocationPacket] = []
+    @Published var frameMemoryPackets: [FrameMemoryPacket] = []
 
     func addLog(_ log: DebugLog) {
         DispatchQueue.main.async {
@@ -218,6 +281,18 @@ class MainInterpreter: Interpreter {
                     } else {
                         DebugInformation.shared.objectData.append(info)
                     }
+                }
+            }
+        case "frame_memory_info":
+            if let info = try? JSONDecoder().decode(FrameMemoryPacket.self, from: data) {
+                DispatchQueue.main.async {
+                    DebugInformation.shared.frameMemoryPackets.append(info)
+                }
+            }
+        case "allocation_event":
+            if let info = try? JSONDecoder().decode(AllocationPacket.self, from: data) {
+                DispatchQueue.main.async {
+                    DebugInformation.shared.allocationPackets.append(info)
                 }
             }
         default:
