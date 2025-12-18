@@ -41,6 +41,19 @@ enum ObjectCategory: String, CaseIterable, Identifiable, Codable, Hashable {
     }
 }
 
+private extension ObjectCategory {
+    static func fromDebug(_ type: DebugObjectType) -> ObjectCategory {
+        switch type {
+        case .staticMesh: return .staticMesh
+        case .skeletalMesh: return .skeletalMesh
+        case .particleSystem: return .particleSystem
+        case .lightProbe: return .lightProbe
+        case .terrain: return .terrain
+        case .other: return .other
+        }
+    }
+}
+
 struct TracedObject: Identifiable, Hashable {
     let id = UUID()
     let name: String
@@ -73,14 +86,14 @@ struct CategoryFrameSample: Identifiable {
 }
 
 struct ObjectView: View {
+    @ObservedObject var debugSession: DebugInformation = .shared
+
     @State private var objects: [TracedObject] = []
     @State private var samples: [ObjectMetricSample] = []
     @State private var categorySamples: [CategoryFrameSample] = []
 
     @State private var selectedObject: TracedObject?
     @State private var selectedFrameIndex: Int = 0
-
-    private let frameCount: Int = 240
 
     var body: some View {
         ScrollView {
@@ -104,9 +117,12 @@ struct ObjectView: View {
                 }
             }
             .padding()
-        }
-        .onAppear {
-            generateSampleObjectData(frameCount: frameCount, objectCount: 35)
+            .onChange(of: debugSession.objectData) { _ in
+                refreshFromDebug()
+            }
+            .onAppear {
+                refreshFromDebug()
+            }
         }
     }
 
@@ -120,9 +136,9 @@ struct ObjectView: View {
                 Spacer()
 
                 Button {
-                    generateSampleObjectData(frameCount: frameCount, objectCount: 35)
+                    refreshFromDebug()
                 } label: {
-                    Label("Simulate Capture", systemImage: "waveform")
+                    Label("Refresh", systemImage: "arrow.clockwise")
                 }
             }
 
@@ -261,7 +277,10 @@ struct ObjectView: View {
                 Slider(value: Binding(
                     get: { Double(selectedFrameIndex) },
                     set: { selectedFrameIndex = Int($0.rounded()) }
-                ), in: 0...Double(max(0, frameCount - 1)), step: 1)
+                ), in: {
+                    let maxFrame = samples.map { $0.frame }.max() ?? 0
+                    return 0...Double(max(maxFrame, 1))
+                }(), step: 1)
                     .frame(maxWidth: 400)
 
                 Text("\(selectedFrameIndex)")
@@ -410,7 +429,8 @@ struct ObjectView: View {
 
     private var frameDrawCallsSeries: [(frame: Int, value: Int)] {
         let grouped = Dictionary(grouping: samples, by: { $0.frame })
-        return (0..<frameCount).map { f in
+        let maxFrame = grouped.keys.max() ?? 0
+        return (0...maxFrame).map { f in
             let sum = grouped[f]?.reduce(0) { $0 + $1.drawCalls } ?? 0
             return (frame: f, value: sum)
         }
@@ -424,74 +444,44 @@ struct ObjectView: View {
         return maxPoint
     }
 
-    private func generateSampleObjectData(frameCount: Int, objectCount: Int) {
-        objects.removeAll()
-        samples.removeAll()
-        categorySamples.removeAll()
+    private func refreshFromDebug() {
+        let packets = debugSession.objectData
 
-        var rng = SystemRandomNumberGenerator()
+        var newObjects: [TracedObject] = []
+        newObjects.reserveCapacity(packets.count)
 
-        for i in 0..<objectCount {
-            let cat = ObjectCategory.allCases.randomElement(using: &rng) ?? .staticMesh
-
-            let tri: Int = {
-                switch cat {
-                case .staticMesh: return Int.random(in: 5_000...120_000, using: &rng)
-                case .skeletalMesh: return Int.random(in: 15_000...160_000, using: &rng)
-                case .particleSystem: return Int.random(in: 500...8_000, using: &rng)
-                case .lightProbe: return Int.random(in: 100...1_000, using: &rng)
-                case .terrain: return Int.random(in: 60_000...600_000, using: &rng)
-                case .other: return Int.random(in: 1_000...40_000, using: &rng)
-                }
-            }()
-
-            let materials = Int.random(in: 1...8, using: &rng)
-
-            let vertexMB = Double(tri) * 3.0 * 24.0 / (1_024.0 * 1_024.0) * Double.random(in: 0.8...1.3, using: &rng)
-            let indexMB = Double(tri) * 3.0 * 4.0 / (1_024.0 * 1_024.0) * Double.random(in: 0.8...1.2, using: &rng) //
-            let textureMB = Double(materials) * Double.random(in: 4...48, using: &rng)
-            let uniformMB = Double.random(in: 0.05...0.5, using: &rng)
-
-            let recentDC = Int.random(in: 0...120, using: &rng)
+        for p in packets {
+            let category = ObjectCategory.fromDebug(p.objectType)
+            let vertexMB = Double(p.vertexBufferMb)
+            let indexMB = Double(p.indexBufferMb)
+            let textureMB = Double(p.textureCount) * 8.0
 
             let obj = TracedObject(
-                name: "Object_\(i)",
-                category: cat,
-                triangleCount: tri,
-                materialCount: materials,
+                name: p.id,
+                category: category,
+                triangleCount: p.triangleCount,
+                materialCount: p.materialCount,
                 vertexMemoryMB: vertexMB,
                 indexMemoryMB: indexMB,
                 textureMemoryMB: textureMB,
-                recentDrawCalls: recentDC,
+                recentDrawCalls: p.drawCalls
             )
-            objects.append(obj)
+            newObjects.append(obj)
         }
 
-        for frame in 0..<frameCount {
-            let visibleCount = Int(Double(objects.count) * Double.random(in: 0.35...0.75, using: &rng))
-            let visible = objects.shuffled(using: &rng).prefix(visibleCount)
+        let newSamples: [ObjectMetricSample] = []
+        let newCategorySamples: [CategoryFrameSample] = []
 
-            var perCategory: [ObjectCategory: Int] = [:]
+        objects = newObjects
+        samples = newSamples
+        categorySamples = newCategorySamples
 
-            for o in visible {
-                let baseDC = max(1, o.triangleCount / Int.random(in: 8_000...40_000, using: &rng))
-                let dc = max(0, Int(Double(baseDC) * Double.random(in: 0.6...1.6, using: &rng)))
-
-                let tris = Int(Double(o.triangleCount) * Double.random(in: 0.3...1.0, using: &rng))
-
-                let mem = o.totalMemoryMB * Double.random(in: 0.95...1.05, using: &rng)
-
-                samples.append(ObjectMetricSample(frame: frame, objectId: o.id, drawCalls: dc, triangles: tris, memoryMB: mem))
-
-                perCategory[o.category, default: 0] += tris
-            }
-
-            for (cat, tris) in perCategory {
-                categorySamples.append(CategoryFrameSample(frame: frame, category: cat, triangles: tris))
-            }
+        if let sel = selectedObject, let match = newObjects.first(where: { $0.name == sel.name }) {
+            selectedObject = match
+        } else {
+            selectedObject = newObjects.first
         }
 
-        selectedObject = objects.first
         selectedFrameIndex = 0
     }
 }

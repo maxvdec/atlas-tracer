@@ -106,6 +106,41 @@ struct DebugFrameResourceInformation: Codable, Equatable {
     }
 }
 
+enum DebugObjectType: Int, Codable {
+    case staticMesh = 1
+    case skeletalMesh = 2
+    case particleSystem = 3
+    case lightProbe = 4
+    case terrain = 5
+    case other = 6
+}
+
+struct DebugObjectPacket: Codable, Equatable {
+    let type: String
+    let id: String
+    let drawCalls: Int
+    let objectType: DebugObjectType
+    let triangleCount: Int
+    let materialCount: Int
+    let vertexBufferMb: Float
+    let indexBufferMb: Float
+    let textureCount: Int
+    let frameCount: Int
+
+    enum CodingKeys: String, CodingKey {
+        case type
+        case id
+        case drawCalls = "draw_calls"
+        case objectType = "object_type"
+        case triangleCount = "triangle_count"
+        case materialCount = "material_count"
+        case vertexBufferMb = "vertex_buffer_mb"
+        case indexBufferMb = "index_buffer_mb"
+        case textureCount = "texture_count"
+        case frameCount = "frame_count"
+    }
+}
+
 final class DebugInformation: ObservableObject {
     static let shared = DebugInformation()
 
@@ -114,6 +149,7 @@ final class DebugInformation: ObservableObject {
     @Published var frameDrawInsights: [FrameDrawCallInfo] = []
     @Published var resourceEvents: [DebugResourceEvent] = []
     @Published var frameResourceInformation: [DebugFrameResourceInformation] = []
+    @Published var objectData: [DebugObjectPacket] = []
 
     func addLog(_ log: DebugLog) {
         DispatchQueue.main.async {
@@ -169,6 +205,19 @@ class MainInterpreter: Interpreter {
             if let info = try? JSONDecoder().decode(DebugFrameResourceInformation.self, from: data) {
                 DispatchQueue.main.async {
                     DebugInformation.shared.frameResourceInformation.append(info)
+                }
+            }
+        case "debug_object":
+            if let info = try? JSONDecoder().decode(DebugObjectPacket.self, from: data) {
+                DispatchQueue.main.async {
+                    if let last = DebugInformation.shared.objectData.last {
+                        if last.frameCount != info.frameCount {
+                            DebugInformation.shared.objectData.removeAll()
+                        }
+                        DebugInformation.shared.objectData.append(info)
+                    } else {
+                        DebugInformation.shared.objectData.append(info)
+                    }
                 }
             }
         default:
