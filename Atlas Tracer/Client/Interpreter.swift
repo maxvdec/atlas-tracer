@@ -185,9 +185,9 @@ struct AllocationPacket: Codable, Equatable {
 struct FrameMemoryPacket: Codable, Equatable {
     let type: String
     let frameNumber: Int
-    let totalAllocatedMb: Float
-    let totalGPUMb: Float
-    let totalCPUMb: Float
+    let totalAllocatedMb: Double
+    let totalGPUMb: Double
+    let totalCPUMb: Double
     let allocationCount: Int
     let deallocationCount: Int
 
@@ -202,6 +202,59 @@ struct FrameMemoryPacket: Codable, Equatable {
     }
 }
 
+enum DebugTimingEventSubsystem: Int, Codable {
+    case rendering = 1
+    case physics = 2
+    case ai = 3
+    case scripting = 4
+    case animation = 5
+    case audio = 6
+    case networking = 7
+    case io = 8
+    case scene = 9
+    case other = 10
+}
+
+struct FrameTimingPacket: Codable, Equatable {
+    let type: String
+    let frameNumber: Int
+    let cpuFrameTimeMs: Double
+    let gpuFrameTimeMs: Double
+    let mainThreadTimeMs: Double
+    let workerThreadTimeMs: Double
+    let memoryMb: Double
+    let cpuUsagePercent: Double
+    let gpuUsagePercent: Double
+
+    enum CodingKeys: String, CodingKey {
+        case type
+        case frameNumber = "frame_number"
+        case cpuFrameTimeMs = "cpu_frame_time_ms"
+        case gpuFrameTimeMs = "gpu_frame_time_ms"
+        case mainThreadTimeMs = "main_thread_time_ms"
+        case workerThreadTimeMs = "worker_thread_time_ms"
+        case memoryMb = "memory_mb"
+        case cpuUsagePercent = "cpu_usage_percent"
+        case gpuUsagePercent = "gpu_usage_percent"
+    }
+}
+
+struct TimingEventPacket: Codable, Equatable {
+    let type: String
+    let name: String
+    let subsystem: DebugTimingEventSubsystem
+    let durationMs: Double
+    let frameNumber: Int
+
+    enum CodingKeys: String, CodingKey {
+        case type
+        case name
+        case subsystem
+        case durationMs = "duration_ms"
+        case frameNumber = "frame_number"
+    }
+}
+
 final class DebugInformation: ObservableObject {
     static let shared = DebugInformation()
 
@@ -213,6 +266,8 @@ final class DebugInformation: ObservableObject {
     @Published var objectData: [DebugObjectPacket] = []
     @Published var allocationPackets: [AllocationPacket] = []
     @Published var frameMemoryPackets: [FrameMemoryPacket] = []
+    @Published var frameTimingPackets: [FrameTimingPacket] = []
+    @Published var timingEventPackets: [TimingEventPacket] = []
 
     func addLog(_ log: DebugLog) {
         DispatchQueue.main.async {
@@ -293,6 +348,18 @@ class MainInterpreter: Interpreter {
             if let info = try? JSONDecoder().decode(AllocationPacket.self, from: data) {
                 DispatchQueue.main.async {
                     DebugInformation.shared.allocationPackets.append(info)
+                }
+            }
+        case "frame_timing_info":
+            if let info = try? JSONDecoder().decode(FrameTimingPacket.self, from: data) {
+                DispatchQueue.main.async {
+                    DebugInformation.shared.frameTimingPackets.append(info)
+                }
+            }
+        case "timing_event":
+            if let info = try? JSONDecoder().decode(TimingEventPacket.self, from: data) {
+                DispatchQueue.main.async {
+                    DebugInformation.shared.timingEventPackets.append(info)
                 }
             }
         default:
