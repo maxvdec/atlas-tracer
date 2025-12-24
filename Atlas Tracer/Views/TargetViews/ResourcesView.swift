@@ -89,110 +89,121 @@ struct ResourcesView: View {
     @State private var objectStats: [ResourcesObjectStats] = []
     @State private var currentTotalMemoryMB: Double = 0
     
-    let objectA = "ObjectA"
-    let objectB = "ObjectB"
-    let objectC = "ObjectC"
+    @ObservedObject var debugInformation: DebugInformation = .shared
     
-    func createRandomResourceEvents(count: Int) {
-        resourceEvents.removeAll()
-        frameData.removeAll()
-        typeFrameData.removeAll()
-        objectStats.removeAll()
+    func refreshData() {
+        let debugResourceEvents = debugInformation.resourceEvents
+        let debugFrameResourceInsights = debugInformation.frameResourceInformation
         
-        var currentTime = Date()
-        var currentFrame = 0
-        let eventsPerFrame = 5
-        var activeResources: [ResourceEvent] = []
-        
-        for i in 0 ..< count {
-            let objects = [objectA, objectB, objectC]
-            let objectId = objects.randomElement()!
-            let type = ResourceType.allCases.randomElement()!
-            
-            if i > 0 && i % eventsPerFrame == 0 {
-                currentFrame += 1
+        // Convert debug resource events to UI resource events
+        var newResourceEvents: [ResourceEvent] = []
+        for event in debugResourceEvents {
+            let type: ResourceType
+            switch event.resourceType {
+            case .texture: type = .texture
+            case .buffer: type = .buffer
+            case .shader: type = .shader
+            case .mesh: type = .mesh
             }
             
             let operation: ResourceOperation
-            if activeResources.count < 10 || Double.random(in: 0...1) < 0.7 {
-                operation = Bool.random() ? .created : .loaded
-            } else {
-                operation = .unloaded
+            switch event.operation {
+            case .created: operation = .created
+            case .loaded: operation = .loaded
+            case .unloaded: operation = .unloaded
             }
             
-            let sizeMB = type.averageSizeMB
-            
-            let event = ResourceEvent(
-                objectId: objectId,
+            newResourceEvents.append(ResourceEvent(
+                objectId: event.callerObject,
                 type: type,
                 operation: operation,
-                frame: currentFrame,
-                time: currentTime,
-                sizeMB: sizeMB
-            )
-            
-            resourceEvents.append(event)
-            
-            if operation == .created || operation == .loaded {
-                activeResources.append(event)
-            } else if operation == .unloaded && !activeResources.isEmpty {
-                activeResources.removeFirst()
-            }
-            
-            currentTime = currentTime.addingTimeInterval(0.002)
+                frame: event.frameNumber,
+                time: Date(),
+                sizeMB: Double(event.sizeMb)
+            ))
         }
         
-        let groupedByFrame = Dictionary(grouping: resourceEvents, by: { $0.frame })
-        var cumulativeMemory: Double = 0
-        
-        frameData = groupedByFrame.sorted(by: { $0.key < $1.key }).map { frame, events in
-            let created = events.filter { $0.operation == .created }.count
-            let loaded = events.filter { $0.operation == .loaded }.count
-            let unloaded = events.filter { $0.operation == .unloaded }.count
+        // Convert frame resource information to frame data
+        var newFrameData: [ResourcesFrameData] = []
+        for frameInfo in debugFrameResourceInsights {
+            // Try to get frame time from draw call insights
+            let frameTime = debugInformation.frameDrawInsights
+                .first(where: { $0.frameNumber == frameInfo.frameNumber })?.frameTimeMs ?? 16.67
             
-            let memoryAdded = events.filter { $0.operation == .created || $0.operation == .loaded }
-                .reduce(0.0) { $0 + $1.sizeMB }
-            let memoryRemoved = events.filter { $0.operation == .unloaded }
-                .reduce(0.0) { $0 + $1.sizeMB }
-            cumulativeMemory += memoryAdded - memoryRemoved
-            cumulativeMemory = max(0, cumulativeMemory)
-            
-            let frameTime = Double(created + loaded) * 1.2 + Double(unloaded) * 0.5 + Double.random(in: 8...15)
-            
-            return ResourcesFrameData(
-                frame: frame,
+            newFrameData.append(ResourcesFrameData(
+                frame: frameInfo.frameNumber,
                 frameTime: frameTime,
-                resourcesLoaded: loaded,
-                resourcesCreated: created,
-                resourcesUnloaded: unloaded,
-                totalMemoryMB: cumulativeMemory
-            )
+                resourcesLoaded: frameInfo.resourcesLoaded,
+                resourcesCreated: frameInfo.resourcesCreated,
+                resourcesUnloaded: frameInfo.resourcesUnloaded,
+                totalMemoryMB: Double(frameInfo.totalMemoryMb)
+            ))
         }
         
-        currentTotalMemoryMB = cumulativeMemory
+        // Sort by frame number
+        newFrameData.sort { $0.frame < $1.frame }
         
-        typeFrameData = groupedByFrame.flatMap { frame, events in
-            let activeEvents = events.filter { $0.operation == .created || $0.operation == .loaded }
-            let typeGroups = Dictionary(grouping: activeEvents, by: { $0.type })
-            return typeGroups.map { type, typeEvents in
-                ResourceTypeFrameData(frame: frame, type: type, count: typeEvents.count)
+        // Calculate type frame data (resources by type per frame)
+        var typeCountsByFrame: [Int: [ResourceType: Int]] = [:]
+        for event in newResourceEvents {
+            if event.operation != .unloaded {
+                typeCountsByFrame[event.frame, default: [:]][event.type, default: 0] += 1
             }
-        }.sorted(by: { $0.frame < $1.frame })
+        }
         
-        let activeEvents = resourceEvents.filter { $0.operation == .created || $0.operation == .loaded }
-        let groupedByObject = Dictionary(grouping: activeEvents, by: { $0.objectId })
-        objectStats = groupedByObject.map { objectId, events in
-            let breakdown = Dictionary(grouping: events, by: { $0.type })
-                .mapValues { $0.count }
-            let totalMemory = events.reduce(0.0) { $0 + $1.sizeMB }
+        var newTypeFrameData: [ResourceTypeFrameData] = []
+        for (frame, typeCounts) in typeCountsByFrame {
+            for (type, count) in typeCounts {
+                newTypeFrameData.append(ResourceTypeFrameData(
+                    frame: frame,
+                    type: type,
+                    count: count
+                ))
+            }
+        }
+        newTypeFrameData.sort { $0.frame < $1.frame }
+        
+        // Calculate object statistics
+        var objectResourceMap: [String: [ResourceEvent]] = [:]
+        for event in newResourceEvents {
+            objectResourceMap[event.objectId, default: []].append(event)
+        }
+        
+        var newObjectStats: [ResourcesObjectStats] = []
+        for (objectId, events) in objectResourceMap {
+            var breakdown: [ResourceType: Int] = [:]
+            var totalMemory: Double = 0
             
-            return ResourcesObjectStats(
-                objectId: objectId,
-                resourceCount: events.count,
-                totalMemoryMB: totalMemory,
-                resourceBreakdown: breakdown
-            )
-        }.sorted(by: { $0.resourceCount > $1.resourceCount })
+            for event in events {
+                if event.operation != .unloaded {
+                    breakdown[event.type, default: 0] += 1
+                    totalMemory += event.sizeMB
+                }
+            }
+            
+            let resourceCount = breakdown.values.reduce(0, +)
+            if resourceCount > 0 {
+                newObjectStats.append(ResourcesObjectStats(
+                    objectId: objectId,
+                    resourceCount: resourceCount,
+                    totalMemoryMB: totalMemory,
+                    resourceBreakdown: breakdown
+                ))
+            }
+        }
+        
+        // Sort by memory usage
+        newObjectStats.sort { $0.totalMemoryMB > $1.totalMemoryMB }
+        
+        // Get current total memory
+        let currentTotalMemoryMb = newFrameData.last?.totalMemoryMB ?? 0
+        
+        // Update state
+        resourceEvents = newResourceEvents
+        frameData = newFrameData
+        typeFrameData = newTypeFrameData
+        objectStats = newObjectStats
+        currentTotalMemoryMB = currentTotalMemoryMb
     }
     
     var body: some View {
@@ -518,17 +529,23 @@ struct ResourcesView: View {
                             .cornerRadius(8)
                         }
                     }
+                } else {
+                    Text("No resource data available")
+                        .font(.headline)
+                        .foregroundColor(.secondary)
+                        .padding()
                 }
-                
-                Button("Generate Random Data (150 events)") {
-                    createRandomResourceEvents(count: 150)
-                }
-                .buttonStyle(.borderedProminent)
             }
             .padding()
         }
         .onAppear {
-            createRandomResourceEvents(count: 150)
+            refreshData()
+        }
+        .onChange(of: debugInformation.resourceEvents) {
+            refreshData()
+        }
+        .onChange(of: debugInformation.frameResourceInformation) {
+            refreshData()
         }
     }
     
@@ -562,6 +579,18 @@ struct ResourcesView: View {
     
     private var totalUnloaded: Int {
         frameData.reduce(0) { $0 + $1.resourcesUnloaded }
+    }
+}
+
+extension DebugResourceType: CaseIterable {
+    static var allCases: [DebugResourceType] {
+        [.texture, .buffer, .shader, .mesh]
+    }
+}
+
+extension DebugResourceOperation: CaseIterable {
+    static var allCases: [DebugResourceOperation] {
+        [.created, .loaded, .unloaded]
     }
 }
 

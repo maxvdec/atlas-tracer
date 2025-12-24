@@ -34,13 +34,8 @@ struct ConsoleView: View {
     @State private var showCommandHelp: Bool = false
     
     let availableCommands: [CommandDefinition] = [
-        CommandDefinition(name: "/trace", description: "Start a new trace session", syntax: "/trace [target]"),
-        CommandDefinition(name: "/stop", description: "Stop the current trace", syntax: "/stop"),
-        CommandDefinition(name: "/analyze", description: "Analyze trace results", syntax: "/analyze [options]"),
-        CommandDefinition(name: "/export", description: "Export trace data", syntax: "/export [format] [path]"),
-        CommandDefinition(name: "/clear", description: "Clear console history", syntax: "/clear"),
-        CommandDefinition(name: "/help", description: "Show all available commands", syntax: "/help [command]"),
-        CommandDefinition(name: "/config", description: "Configure trace settings", syntax: "/config [key] [value]"),
+        CommandDefinition(name: "/clear", description: "Clear the console", syntax: "/clear"),
+        CommandDefinition(name: "/log", description: "Log something to the console", syntax: "/log [contents]")
     ]
     
     var filteredCommands: [CommandDefinition] {
@@ -61,6 +56,15 @@ struct ConsoleView: View {
         if command == "/clear" {
             withAnimation {
                 consoleHistory.removeAll()
+            }
+            command = ""
+            return
+        } else if command.split(separator: " ").first == "/log" {
+            let parts = command.split(separator: " ", maxSplits: 1, omittingEmptySubsequences: true)
+            let rawContent = parts.count > 1 ? String(parts[1]) : ""
+            let content = rawContent.trimmingCharacters(in: .whitespacesAndNewlines)
+            withAnimation {
+                consoleHistory.append(ConsoleReturn(message: content, resolution: content.isEmpty ? .warning : .ok))
             }
             command = ""
             return

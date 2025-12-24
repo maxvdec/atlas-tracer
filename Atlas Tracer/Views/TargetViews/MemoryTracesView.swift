@@ -80,7 +80,7 @@ enum ResourceKind: String, CaseIterable, Codable, Hashable, Identifiable {
     }
 }
 
-struct Allocation: Identifiable {
+struct Allocation: Identifiable { // Get from the engine
     let id = UUID()
     let label: String
     let kind: ResourceKind
@@ -91,7 +91,7 @@ struct Allocation: Identifiable {
     let owner: String?
 }
 
-struct FrameMemory: Identifiable {
+struct FrameMemory: Identifiable { // Get from the engine
     let id = UUID()
     let frame: Int
     let totalMB: Double
@@ -124,6 +124,8 @@ struct AllocationEvent: Identifiable {
 }
 
 struct MemoryTracesView: View {
+    @ObservedObject var debugSession: DebugInformation = .shared
+
     @State private var allocations: [Allocation] = []
 
     @State private var frames: [FrameMemory] = []
@@ -175,8 +177,11 @@ struct MemoryTracesView: View {
             }
             .padding()
         }
-        .onAppear {
-            generateSampleMemoryData(frameCount: 300, allocationCount: 550)
+        .task(id: debugSession.frameMemoryPackets) {
+            refreshFromDebug()
+        }
+        .task(id: debugSession.allocationPackets) {
+            refreshFromDebug()
         }
     }
 
@@ -198,10 +203,11 @@ struct MemoryTracesView: View {
                 .frame(maxWidth: 260)
 
                 Button {
-                    generateSampleMemoryData(frameCount: 300, allocationCount: 550)
+                    // Disabled button, no action
                 } label: {
-                    Label("Simulate Capture", systemImage: "waveform")
+                    Label("Awaiting Data", systemImage: "waveform")
                 }
+                .disabled(true)
             }
 
             Text("Track total memory, VRAM vs system usage, resource-type breakdown, allocation churn, and potential leaks.")
@@ -510,8 +516,9 @@ struct MemoryTracesView: View {
                 Slider(value: Binding(
                     get: { Double(selectedFrameIndex) },
                     set: { selectedFrameIndex = Int($0.rounded()) }
-                ), in: 0...Double(max(0, frames.count - 1)), step: 1)
+                ), in: 0 ... Double(max(1, frames.count - 1)), step: 1)
                     .frame(maxWidth: 400)
+                    .disabled(frames.isEmpty)
 
                 let clamped = clampedSelectedFrameIndex
                 Text("\(frames.isEmpty ? 0 : frames[clamped].frame)")
@@ -670,108 +677,85 @@ struct MemoryTracesView: View {
         let kind: ResourceKind
     }
 
-    private func generateSampleMemoryData(frameCount: Int, allocationCount: Int) {
-        allocations.removeAll()
-        frames.removeAll()
-        breakdown.removeAll()
-        events.removeAll()
+    private func refreshFromDebug() {
+        let framesSrc = debugSession.frameMemoryPackets
+        frames = framesSrc.map { framePacket in
+            FrameMemory(
+                frame: framePacket.frameNumber,
+                totalMB: Double(framePacket.totalAllocatedMb),
+                totalsByDomain: [
+                    .cpu: Double(framePacket.totalCPUMb),
+                    .gpu: Double(framePacket.totalGPUMb)
+                ],
+                allocationCount: framePacket.allocationCount,
+                deallocationCount: framePacket.deallocationCount
+            )
+        }
 
-        var rng = SystemRandomNumberGenerator()
+        let allocSrc = debugSession.allocationPackets
 
-        func sizeRange(for kind: ResourceKind) -> ClosedRange<Double> {
+        func mapDomain(_ domain: DebugMemoryDomain) -> MemoryDomain {
+            switch domain {
+            case .CPU:
+                return .cpu
+            case .GPU:
+                return .gpu
+            }
+        }
+
+        func mapKind(_ kind: DebugMemoryResourceKind) -> ResourceKind {
             switch kind {
-            case .vertexBuffer: return 1...16
-            case .indexBuffer: return 0.5...8
-            case .uniformBuffer: return 0.1...2
-            case .storageBuffer: return 2...64
-            case .texture2D: return 4...128
-            case .textureCube: return 8...64
-            case .renderTarget: return 8...128
-            case .depthStencil: return 8...64
-            case .sampler: return 0.01...0.1
-            case .pipelineCache: return 4...32
-            case .accelerationStructure: return 16...128
-            case .other: return 0.1...8
+            case .vertexBuffer: return .vertexBuffer
+            case .indexBuffer: return .indexBuffer
+            case .uniformBuffer: return .uniformBuffer
+            case .storageBuffer: return .storageBuffer
+            case .texture2d: return .texture2D
+            case .texture3d: return .texture2D
+            case .textureCube: return .textureCube
+            case .renderTarget: return .renderTarget
+            case .depthStencil: return .depthStencil
+            case .sampler: return .sampler
+            case .pipelineCache: return .pipelineCache
+            case .accelerationStructure: return .accelerationStructure
+            case .other: return .other
             }
         }
 
-        for i in 0..<allocationCount {
-            let kind = ResourceKind.allCases.randomElement(using: &rng)!
-            let domain: MemoryDomain = {
-                switch kind {
-                case .vertexBuffer, .indexBuffer, .uniformBuffer, .storageBuffer, .accelerationStructure:
-                    return Bool.random(using: &rng) ? .gpu : .cpu
-                case .texture2D, .textureCube, .renderTarget, .depthStencil, .sampler:
-                    return .gpu
-                case .pipelineCache, .other:
-                    return Bool.random(using: &rng) ? .gpu : .cpu
-                }
-            }()
-
-            let size = Double.random(in: sizeRange(for: kind), using: &rng)
-            let create = Int.random(in: 0..<max(1, frameCount - 1), using: &rng)
-
-            let lifetimeCategory = Int.random(in: 0..<100, using: &rng)
-            let lifetimeFrames: Int = {
-                switch lifetimeCategory {
-                case 0..<50: return Int.random(in: 1...30, using: &rng)
-                case 50..<85: return Int.random(in: 30...120, using: &rng)
-                case 85..<95: return Int.random(in: 120...240, using: &rng)
-                default: return Int.max
-                }
-            }()
-
-            let release: Int? = lifetimeFrames == Int.max ? nil : min(create + lifetimeFrames, frameCount)
-            let label = "\(kind.displayName) #\(i)"
-            let owner = Bool.random(using: &rng) ? "Object\(Int.random(in: 1...20, using: &rng))" : nil
-
-            let alloc = Allocation(label: label, kind: kind, domain: domain, sizeMB: size, createdAtFrame: create, releasedAtFrame: release, owner: owner)
-            allocations.append(alloc)
+        allocations = allocSrc.map { a in
+            Allocation(
+                label: a.description,
+                kind: mapKind(a.kind),
+                domain: mapDomain(a.domain),
+                sizeMB: Double(a.sizeMb),
+                createdAtFrame: a.frameNumber,
+                releasedAtFrame: nil,
+                owner: a.owner
+            )
         }
 
-        var perFrameAllocs: [Int: [Allocation]] = [:]
-        var perFrameFrees: [Int: [Allocation]] = [:]
-
-        for a in allocations {
-            perFrameAllocs[a.createdAtFrame, default: []].append(a)
-            if let r = a.releasedAtFrame, r < frameCount {
-                perFrameFrees[r, default: []].append(a)
-            }
-        }
-
-        for frame in 0..<frameCount {
-            let live = allocations.filter { $0.createdAtFrame <= frame && ($0.releasedAtFrame == nil || $0.releasedAtFrame! > frame) }
-
-            var domainTotals: [MemoryDomain: Double] = [.cpu: 0, .gpu: 0]
-            for a in live {
-                domainTotals[a.domain, default: 0] += a.sizeMB
-            }
-            let total = domainTotals.values.reduce(0, +)
-
-            let allocCount = perFrameAllocs[frame]?.count ?? 0
-            let freeCount = perFrameFrees[frame]?.count ?? 0
-
-            frames.append(FrameMemory(frame: frame, totalMB: total, totalsByDomain: domainTotals, allocationCount: allocCount, deallocationCount: freeCount))
-
+        var newBreakdown: [FrameResourceBreakdown] = []
+        for frame in frames {
+            let live = allocations.filter { $0.createdAtFrame <= frame.frame && ($0.releasedAtFrame == nil || $0.releasedAtFrame! > frame.frame) }
             let grouped = Dictionary(grouping: live, by: { PairKey(domain: $0.domain, kind: $0.kind) })
             for (key, arr) in grouped {
                 let sum = arr.reduce(0.0) { $0 + $1.sizeMB }
-                breakdown.append(FrameResourceBreakdown(frame: frame, domain: key.domain, kind: key.kind, sizeMB: sum))
-            }
-
-            if let newAllocs = perFrameAllocs[frame] {
-                for a in newAllocs {
-                    events.append(AllocationEvent(frame: frame, action: .alloc, kind: a.kind, domain: a.domain, sizeMB: a.sizeMB, label: a.label))
-                }
-            }
-            if let frees = perFrameFrees[frame] {
-                for a in frees {
-                    events.append(AllocationEvent(frame: frame, action: .free, kind: a.kind, domain: a.domain, sizeMB: a.sizeMB, label: a.label))
-                }
+                newBreakdown.append(FrameResourceBreakdown(frame: frame.frame, domain: key.domain, kind: key.kind, sizeMB: sum))
             }
         }
+        breakdown = newBreakdown
 
-        selectedFrameIndex = min(0, frames.count - 1)
+        var newEvents: [AllocationEvent] = []
+        for a in allocSrc {
+            newEvents.append(AllocationEvent(
+                frame: a.frameNumber,
+                action: .alloc,
+                kind: mapKind(a.kind),
+                domain: mapDomain(a.domain),
+                sizeMB: Double(a.sizeMb),
+                label: a.description
+            ))
+        }
+        events = newEvents
     }
 }
 

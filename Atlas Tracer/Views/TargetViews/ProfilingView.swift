@@ -51,7 +51,7 @@ enum Subsystem: String, CaseIterable, Codable, Hashable {
     }
 }
 
-struct ProfileEvent: Identifiable {
+struct ProfileEvent: Identifiable { // Get from Engine
     let id = UUID()
     let frame: Int
     let name: String
@@ -62,7 +62,7 @@ struct ProfileEvent: Identifiable {
     var endMs: Double { startMs + durationMs }
 }
 
-struct FrameTiming: Identifiable {
+struct FrameTiming: Identifiable { // Get from Engine
     let id = UUID()
     let frame: Int
     let cpuMs: Double
@@ -86,6 +86,7 @@ struct FrameSubsystemTiming: Identifiable {
 }
 
 struct ProfilingView: View {
+    @ObservedObject var debugSession: DebugInformation = .shared
     @State private var frames: [FrameTiming] = []
     @State private var frameSubsystemData: [FrameSubsystemTiming] = []
 
@@ -137,7 +138,13 @@ struct ProfilingView: View {
             .padding()
         }
         .onAppear {
-            generateSampleProfilingData(frameCount: 240)
+            refreshFromDebug()
+        }
+        .onChange(of: debugSession.frameTimingPackets) {
+            refreshFromDebug()
+        }
+        .onChange(of: debugSession.timingEventPackets) {
+            refreshFromDebug()
         }
     }
 
@@ -163,10 +170,11 @@ struct ProfilingView: View {
                     .frame(width: 140)
 
                 Button {
-                    generateSampleProfilingData(frameCount: 240)
+                    // Disabled button action
                 } label: {
-                    Label("Simulate Capture", systemImage: "waveform")
+                    Label("Awaiting Data", systemImage: "waveform")
                 }
+                .disabled(true)
             }
 
             Text("Analyze CPU/GPU frame times, subsystem costs, and runtime stats to identify spikes, jank, and bottlenecks.")
@@ -501,7 +509,7 @@ struct ProfilingView: View {
                     set: { newValue in
                         selectedFrameIndex = Int(newValue.rounded())
                     }
-                ), in: 0...Double(max(0, frames.count - 1)), step: 1)
+                ), in: 0 ... Double(max(0, frames.count - 1)), step: 1)
                     .frame(maxWidth: 400)
 
                 let clampedIndex = min(max(0, selectedFrameIndex), max(0, frames.count - 1))
@@ -543,87 +551,71 @@ struct ProfilingView: View {
         }
     }
 
-    private func generateSampleProfilingData(frameCount: Int) {
-        frames.removeAll()
-        frameSubsystemData.removeAll()
-
-        var memory: Double = 800 // MB
-        var cpuUtil: Double = 45
-        var gpuUtil: Double = 35
-
-        for frame in 0..<frameCount {
-            var cpuMs = Double.random(in: 10.0...19.0)
-            var gpuMs = Double.random(in: 8.0...18.0)
-
-            if Int.random(in: 0..<35) == 0 {
-                cpuMs += Double.random(in: 8.0...20.0)
+    private func refreshFromDebug() {
+        func mapSubsystem(_ debugSubsystem: DebugTimingEventSubsystem) -> Subsystem {
+            switch debugSubsystem {
+            case .rendering: return .rendering
+            case .physics: return .physics
+            case .ai: return .ai
+            case .scripting: return .scripting
+            case .animation: return .animation
+            case .audio: return .audio
+            case .networking: return .networking
+            case .io: return .io
+            case .scene: return .scene
+            case .other: return .other
             }
-            if Int.random(in: 0..<40) == 0 {
-                gpuMs += Double.random(in: 8.0...20.0)
-            }
+        }
 
-            var remaining = cpuMs
-            var breakdown: [Subsystem: Double] = [:]
+        var newFrames: [FrameTiming] = []
 
-            let order = Subsystem.allCases.shuffled()
-            for (idx, subsystem) in order.enumerated() {
-                if idx == order.count - 1 {
-                    breakdown[subsystem] = max(0.2, remaining)
-                } else {
-                    let maxPart = min(remaining * 0.6, 6.0)
-                    let upperBound = max(0.5, maxPart)
-                    let part = max(0.1, Double.random(in: 0.5...upperBound))
-                    breakdown[subsystem] = part
-                    remaining = max(0.0, remaining - part)
-                }
+        for packet in debugSession.frameTimingPackets {
+            let eventsForFrame = debugSession.timingEventPackets.filter { $0.frameNumber == packet.frameNumber }
+
+            var subsystemDurations: [Subsystem: Double] = [:]
+            for event in eventsForFrame {
+                let subsystem = mapSubsystem(event.subsystem)
+                subsystemDurations[subsystem, default: 0] += event.durationMs
             }
 
-            let mainThread = min(cpuMs, max(3.0, cpuMs * Double.random(in: 0.45...0.7)))
-            let workers = max(0.0, cpuMs - mainThread)
-
-            memory += Double.random(in: -2.0...3.0)
-            memory = max(700, min(1600, memory))
-
-            cpuUtil += Double.random(in: -4.0...4.0)
-            cpuUtil = max(10, min(100, cpuUtil))
-
-            gpuUtil += Double.random(in: -4.0...4.0)
-            gpuUtil = max(5, min(100, gpuUtil))
-
-            var events: [ProfileEvent] = []
-            var t = 0.0
-            let eventCount = Int.random(in: 3...7)
-            for _ in 0..<eventCount {
-                let subsystem = Subsystem.allCases.randomElement()!
-                let dur = Double.random(in: 0.3...max(0.5, cpuMs / Double(eventCount)))
-                events.append(ProfileEvent(frame: frame, name: subsystem.displayName, subsystem: subsystem, startMs: t, durationMs: dur))
-                t += dur
-                if t >= cpuMs { break }
+            var profileEvents: [ProfileEvent] = []
+            var runningStart: Double = 0
+            for event in eventsForFrame {
+                let subsystem = mapSubsystem(event.subsystem)
+                let pe = ProfileEvent(
+                    frame: packet.frameNumber,
+                    name: event.name,
+                    subsystem: subsystem,
+                    startMs: runningStart,
+                    durationMs: event.durationMs
+                )
+                profileEvents.append(pe)
+                runningStart += event.durationMs
             }
 
-            let ft = FrameTiming(
-                frame: frame,
-                cpuMs: cpuMs,
-                gpuMs: gpuMs,
-                mainThreadMs: mainThread,
-                workerThreadsMs: workers,
-                memoryMB: memory,
-                cpuUtilPercent: cpuUtil,
-                gpuUtilPercent: gpuUtil,
-                subsystemBreakdown: breakdown,
-                events: events
+            let frameTiming = FrameTiming(
+                frame: packet.frameNumber,
+                cpuMs: packet.cpuFrameTimeMs,
+                gpuMs: packet.gpuFrameTimeMs,
+                mainThreadMs: packet.mainThreadTimeMs,
+                workerThreadsMs: packet.workerThreadTimeMs,
+                memoryMB: packet.memoryMb,
+                cpuUtilPercent: packet.cpuUsagePercent,
+                gpuUtilPercent: packet.gpuUsagePercent,
+                subsystemBreakdown: subsystemDurations,
+                events: profileEvents
             )
 
-            frames.append(ft)
+            newFrames.append(frameTiming)
         }
+
+        frames = newFrames
 
         frameSubsystemData = frames.flatMap { f in
             f.subsystemBreakdown.map { key, value in
                 FrameSubsystemTiming(frame: f.frame, subsystem: key, ms: value)
             }
         }
-
-        selectedFrameIndex = min(0, frames.count - 1)
     }
 
     private var averageCPU: Double {
