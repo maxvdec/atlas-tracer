@@ -26,4 +26,8 @@ Atlas Tracer works with different types of *sessions*, which they are basically 
 
 If you waent to implement you own application that can interact with Atlas, you can consult our documentation on the protocol.
  
+## About running the application
 
+Since we work primarily with macOS, the implementation we offer is indeed for macOS. However, you can implement your own version for other operating systems using the protocol documentation.
+Also, you need to bypass Gatekeeper to run the application, since it is not signed. To do so, right click on the application and select "Open", then confirm you want to open it.
+We do not have an Apple Developer account, hence the lack of signing. Our apologies for the inconvenience.
