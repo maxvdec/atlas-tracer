@@ -221,7 +221,9 @@ struct SelectLogsAndExecutableView: View {
                     self.sheetEnded = true
                 } label: {
                     Text("Create")
-                }.buttonStyle(.borderedProminent)
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(self.debugName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || self.executablePath == nil)
             }
         }.padding()
     }
@@ -329,11 +331,19 @@ struct CreateProjectView: View {
             .sheet(isPresented: self.$showSheet) {
                 SelectLogsAndExecutableView(showSheet: self.$showSheet, sheetEnded: self.$sheetEnded, project: self.$project, selected: self.$selected)
             }
+            .onAppear {
+                if self.environment.currentProject == nil {
+                    self.dismissWindow(id: "project-view")
+                }
+            }
             .onChange(of: self.sheetEnded) {
                 if self.sheetEnded {
-                    self.environment.currentProject = self.project
-                    self.openWindow(id: "project-view")
-                    self.dismissWindow(id: "create-debug-session")
+                    if let created = self.project {
+                        self.environment.currentProject = created
+                        self.openWindow(id: "project-view")
+                        self.dismissWindow(id: "create-debug-session")
+                    }
+                    self.sheetEnded = false
                 }
             }
     }
@@ -346,3 +356,4 @@ struct CreateProjectView: View {
 #Preview("LogsAndExecutable") {
     SelectLogsAndExecutableView(showSheet: .constant(false), sheetEnded: .constant(false), project: .constant(nil), selected: .constant(0))
 }
+
